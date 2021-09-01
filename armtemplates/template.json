@@ -1,0 +1,323 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "hostingPlanName": {
+            "type": "string",
+            "metadata": {
+                "description": "The App Service Plan name"
+            }
+        },
+        "functionAppName": {
+            "type": "string",
+            "metadata": {
+                "description": "The Function App name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "allowedValues": [
+                "australiaeast",
+                "australiasoutheast"
+            ],
+            "metadata": {
+                "description": "Location for all resources."
+            },
+            "defaultValue" : "[resourceGroup().location]"
+        },
+        "sku": {
+            "type": "string",
+            "allowedValues": [
+                "B1",
+                "B2",
+                "B3",
+                "S1",
+                "S2",
+                "S3",
+                "P1",
+                "P2",
+                "P3"
+            ],
+            "defaultValue": "S1",
+            "metadata": {
+                "description": "The pricing tier for the hosting plan."
+            }
+        },
+        "workerSize": {
+            "type": "string",
+            "allowedValues": [
+                "0",
+                "1",
+                "2"
+            ],
+            "defaultValue": "1",
+            "metadata": {
+                "description": "The instance size of the hosting plan (small, medium, or large)."
+            }
+        },
+        "runtimeStack": {
+            "type": "string",
+            "defaultValue": "powershell",
+            "allowedValues": [
+                "powershell",
+                "dotnet",
+                "node",
+                "java"
+            ],
+            "metadata": {
+                "description": "Pick the language runtime that you want enabled"
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of a the storage account utilised to deploy cloud service configurations"
+            }
+        },
+        "accountType": {
+            "type": "string",
+            "metadata": {
+                "description": "Type of Storage Account, e.g. Standard/Premium, LRS/GRS, etc."
+            },
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_RAGRS",
+                "Premium_LRS"
+            ],
+            "defaultValue": "Standard_GRS"
+        },
+        "accessTier": {
+            "type": "string",
+            "allowedValues": [
+                "Hot",
+                "Cool"
+            ],
+            "metadata": {
+                "description": "The account Access Tier, Hot for frequently accessed data or Cool for infreqently accessed data."
+            },
+            "defaultValue": "Hot"
+        },
+        "kind": {
+            "type": "string",
+            "allowedValues": [
+                "Storage",
+                "BlobStorage",
+                "StorageV2"
+            ],
+            "metadata": {
+                "description": "Storage account kind, e.g. General Purpose v1/v2 or BlobStorage."
+            },
+            "defaultValue": "StorageV2"
+        },
+        "softDeleteRetentionDays": {
+            "type": "int",
+            "minValue": 1,
+            "maxValue": 365,
+            "metadata": {
+                "description": "Amount of days the soft deleted data is stored and available for recovery."
+            },
+            "defaultValue": 90
+        },
+        "timeZone": {
+            "type": "string",
+            "defaultValue": "AUS Eastern Standard Time",
+            "allowedValues": [
+                "Cen. Australia Standard Time",
+                "AUS Central Standard Time",
+                "E. Australia Standard Time",
+                "AUS Eastern Standard Time"
+            ],
+            "metadata": {
+                "description": "Pick the timezone to use for the function"
+            }
+        },
+        "envPrefix": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Provide a desired prefix in use for this environment"
+            }
+        },
+        "ehNumber": {
+            "type": "string",
+            "defaultValue": "4",
+            "metadata": {
+                "description": "Provide the number of event hubs in use for this environment"
+            }
+        },
+        "eventHubResourceGroupName": {
+            "type": "string",
+            "metadata": {
+                "description": "Provide the name of the resource group which holds monitoring event hubs"
+            }
+        },
+        "enableDatabaseMetricsAndDiagnostics" : { 
+            "type": "string",
+            "defaultValue": "true",
+            "metadata": {
+                "description": "Should the Azure Function enable database metrics and diagnostics shipping"
+            }
+        },
+        "enableServerAuditLogging" : {
+            "type": "string",
+            "defaultValue": "true",
+            "metadata": {
+                "description": "Should the Azure Function enable server audit shipping"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "[parameters('functionAppName')]",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2019-08-01",
+            "location": "[parameters('location')]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "[resourceId('microsoft.insights/components', parameters('functionAppName'))]"
+            ],
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "[parameters('runtimeStack')]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value)]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(resourceId('microsoft.insights/components', parameters('functionAppName')), '2018-05-01-preview').InstrumentationKey]"
+                        },
+                        {
+                            "name": "FUNCTION_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')),'2019-06-01').keys[0].value)]"
+                        }
+                    ]
+                },
+                "name": "[parameters('functionAppName')]",
+                "clientAffinityEnabled": false,
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]"
+            }
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2020-06-01",
+            "name": "[parameters('hostingPlanName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "Name": "[parameters('sku')]"
+            },
+            "properties": {
+                "name": "[parameters('hostingPlanName')]",
+                "workerSize": "[parameters('workerSize')]",
+                "numberOfWorkers": 1
+            }
+        },
+        {
+            "apiVersion": "2019-06-01",
+            "name": "[parameters('storageAccountname')]",
+            "location": "[parameters('location')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "kind": "[parameters('kind')]",
+            "sku": {
+                "name": "[parameters('accountType')]"
+            },
+            "properties": {
+                "accessTier": "[parameters('accessTier')]",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "blob": {
+                            "enabled": true
+                        },
+                        "file": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageaccounts/blobServices",
+            "name": "[concat(parameters('storageAccountname'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountname'))]"
+            ],
+            "apiVersion": "2019-06-01",
+            "properties": {
+                "deleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": "[parameters('softDeleteRetentionDays')]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2018-05-01-preview",
+            "name": "[parameters('functionAppName')]",
+            "type": "Microsoft.Insights/components",
+            "location": "[parameters('location')]",
+            "kind": "other",
+            "tags": {
+                "[concat('hidden-link:', resourceId('Microsoft.Web/sites/', parameters('functionAppName')))]": "Resource"
+            },
+            "properties": {
+                "Application_Type": "other",
+                "ApplicationId": "[parameters('functionAppName')]"
+            }
+        }//,
+        // {
+        //     "type": "Microsoft.Storage/storageAccounts/providers/locks",
+        //     "name": "[concat(parameters('storageAccountname'), '/Microsoft.Authorization/', parameters('storageAccountname'), '-lck')]",
+        //     "dependsOn": [
+        //         "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountname'))]"
+        //     ],
+        //     "apiVersion": "2017-04-01",
+        //     "properties": {
+        //         "level": "CannotDelete"
+        //     }
+        // },
+        // {
+        //     "type": "Microsoft.Web/serverfarms/providers/locks",
+        //     "name": "[concat(parameters('hostingPlanName'), '/Microsoft.Authorization/', parameters('hostingPlanName'), '-lck')]",
+        //     "dependsOn": [
+        //         "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]"
+        //     ],
+        //     "apiVersion": "2017-04-01",
+        //     "properties": {
+        //         "level": "CannotDelete"
+        //     }
+        // },
+        // {
+        //     "type": "Microsoft.Insights/components/providers/locks",
+        //     "name": "[concat(parameters('hostingPlanName'), '/Microsoft.Authorization/', parameters('functionAppName'), '-lck')]",
+        //     "dependsOn": [
+        //         "[resourceId('Microsoft.Insights/components', parameters('functionAppName'))]"
+        //     ],
+        //     "apiVersion": "2017-04-01",
+        //     "properties": {
+        //         "level": "CannotDelete"
+        //     }
+        // }
+    ],
+    "outputs": {
+        "principalId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2019-08-01', 'Full').identity.principalId]"
+        }
+    }
+}

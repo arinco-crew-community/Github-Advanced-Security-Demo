@@ -1,0 +1,56 @@
+name: 03 - External Integration (Azure SC)
+# on: [push]
+on: 
+  workflow_dispatch:
+
+jobs:
+  Build-Scan-App-Container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+        run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Configure environment variables
+        uses: ./.github/actions/setvars
+        with:
+          varFilePath: ./.github/variables/*
+      
+      - name: Login to Azure
+        uses: azure/login@v1.1
+        with:
+          creds: ${{ secrets.AZURE_LOGIN_SECRET }}
+
+      - name: Build Demo container
+        run: |
+          echo "github.sha=$GITHUB_SHA"
+          cd ${{ github.workspace }}/app
+          docker build . -t $acr_name.azurecr.io/containers/$ghsecure_container_name:$ghsecure_container_version-${{ github.sha }}
+      
+      - name: Scan image for vulnerabilities 
+        uses: Azure/container-scan@v0 
+        id: container-scan
+        continue-on-error: true
+        with:
+          image-name: ${{ env.acr_name }}.azurecr.io/containers/${{ env.ghsecure_container_name }}:${{ env.ghsecure_container_version}}-${{ github.sha }}
+
+      - name: Push Docker image
+        run: |
+          echo "github.sha=$GITHUB_SHA"
+          cd ${{ github.workspace }}/app
+          az acr login --name $acr_name
+          docker push $acr_name.azurecr.io/containers/$ghsecure_container_name:$ghsecure_container_version-${{ github.sha }}
+
+      - name: Post security logs to appinsights
+        uses: Azure/publish-security-assessments@v0
+        with: 
+          scan-results-path: ${{ steps.container-scan.outputs.scan-report-path }}
+          connection-string: ${{ secrets.AZ_APPINSIGHTS_CONNECTION_STRING }}
+          subscription-token: ${{ secrets.AZ_SUBSCRIPTION_TOKEN }} 
+
+
+
+
+

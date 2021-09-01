@@ -1,0 +1,141 @@
+rules:
+- id: function-missing-ftps-configuration
+  patterns:
+    - pattern: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...
+                },
+                ...,
+            }
+        }
+    - pattern-not: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...,
+                    "ftpsState": "ftpsOnly",
+                    ...,
+                },
+                ...,
+            }
+        }
+    - pattern-not: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...,
+                    "ftpsState": "disabled",
+                    ...,
+                },
+                ...,
+            }
+        }
+  message: Azure Function is missing FTPS Setting
+  metadata:
+    owasp: 'A6: Security Misconfiguration'
+    cwe: 'CWE-319: Cleartext Transmission of Sensitive Information'
+    references:
+    - https://docs.microsoft.com/en-us/azure/app-service/deploy-ftp?tabs=portal#enforce-ftps
+    - https://docs.microsoft.com/en-us/azure/templates/microsoft.web/2018-02-01/sites?tabs=json
+    category: security
+    technology:
+    - azure
+  languages: [json]
+  severity: WARNING
+- id: function-missing-tls1.2-configuration
+  patterns:
+    - pattern: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...
+                },
+                ...,
+            }
+        }
+    - pattern-not: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...,
+                    "minTlsVersion": "1.2",
+                    ...,
+                },
+                ...,
+            }
+        }
+  message: Azure Function is missing TLS 1.2 Configuration
+  metadata:
+    owasp: 'A6: Security Misconfiguration'
+    cwe: 'CWE-319: Cleartext Transmission of Sensitive Information'
+    references:
+    - https://docs.microsoft.com/en-us/azure/templates/microsoft.web/2018-11-01/sites?tabs=json
+    - https://docs.microsoft.com/en-us/azure/app-service/configure-ssl-bindings#enforce-tls-versions
+    category: security
+    technology:
+    - azure
+  languages: [json]
+  severity: WARNING
+- id: function-missing-tls1.2-scm-configuration
+  patterns:
+    - pattern: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...
+                },
+                ...,
+            }
+        }
+    - pattern-not: |
+        {
+            "type": "Microsoft.Web/sites",
+            ...,
+            "kind": "functionapp",
+            ...,
+            "properties": {
+                "siteConfig": {
+                    ...,
+                    "scmMinTlsVersion":"1.2",
+                    ...,
+                },
+                ...,
+            }
+        }
+  message: Azure Function is missing TLS 1.2 Configuration for the Source Control Manager sit
+  metadata:
+    owasp: 'A6: Security Misconfiguration'
+    cwe: 'CWE-319: Cleartext Transmission of Sensitive Information'
+    references:
+    - https://docs.microsoft.com/en-us/azure/templates/microsoft.web/2020-09-01/sites/config-web?tabs=json
+    category: security
+    technology:
+    - azure
+  languages: [json]
+  severity: WARNING
