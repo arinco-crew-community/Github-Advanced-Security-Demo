@@ -63,7 +63,7 @@ jobs:
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.4.0
         with:
-          target: 'http://${{ env.ghsecure_cname_npd }}:9090'
+          target: 'http://npd-dvwa.demo.arinco.com.au:9090'
           fail_action: true
           issue_title: "Security Issue Found - DVWA Non-Prod"
   
